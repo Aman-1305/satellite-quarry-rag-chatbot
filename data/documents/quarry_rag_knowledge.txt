@@ -1,0 +1,598 @@
+QUARRY SATELLITE IMAGE DETECTION SYSTEM — RAG KNOWLEDGE BASE
+Version: 1.0
+Purpose: Knowledge corpus for a Retrieval-Augmented Generation (RAG) chatbot used with a satellite-image quarry detection and monitoring system.
+
+IMPORTANT SCOPE
+This knowledge base is designed for questions about detecting and monitoring surface quarries/open-pit extraction areas from satellite imagery. It covers Sentinel-2 multispectral imagery, Sentinel-1 SAR imagery, vegetation indices, spectral features, change detection, preprocessing, GIS concepts, model inputs, validation, limitations, and interpretation.
+
+The chatbot should use this knowledge as technical guidance. It should not claim that a quarry is present from text alone. Actual detection must use the project’s processed satellite imagery and the trained/implemented detection pipeline.
+
+============================================================
+1. WHAT IS A QUARRY?
+============================================================
+
+A quarry is a surface excavation used to extract stone, rock, sand, gravel, or other construction/mineral materials. From satellite imagery, a quarry may appear as a disturbed area containing exposed rock or soil, excavation pits, benches, haul roads, waste or spoil piles, water-filled pits, and reduced vegetation.
+
+A quarry is not defined by one unique pixel value. Its appearance depends on geology, material type, climate, vegetation, illumination, season, mining stage, and image resolution.
+
+Common satellite-visible quarry indicators include:
+- Large areas of exposed bare soil or rock.
+- Strong reduction of vegetation inside the disturbed footprint.
+- Excavated pits or stepped/bench-like terrain.
+- Internal roads and stockpiles.
+- Bright or spectrally distinct exposed surfaces.
+- Water bodies inside abandoned or active pits.
+- Expansion of the disturbed footprint over time.
+
+A single visual characteristic is not sufficient for reliable detection. Multiple spectral, spatial, temporal, and contextual features should be considered.
+
+============================================================
+2. SATELLITE DATA USED BY THE PROJECT
+============================================================
+
+SENTINEL-2
+Sentinel-2 MSI provides 13 spectral bands covering visible, near-infrared (NIR), and short-wave infrared (SWIR) wavelengths.
+
+Relevant bands for a quarry detection workflow include:
+- B02: Blue, 10 m
+- B03: Green, 10 m
+- B04: Red, 10 m
+- B05: Red Edge 1, 20 m
+- B06: Red Edge 2, 20 m
+- B07: Red Edge 3, 20 m
+- B08: Near Infrared (NIR), 10 m
+- B8A: Narrow NIR / Red Edge, 20 m
+- B11: SWIR 1, 20 m
+- B12: SWIR 2, 20 m
+
+The project may use these bands because vegetation, bare surfaces, moisture, and exposed mineral/rock surfaces can have different spectral responses.
+
+Spatial resolutions differ by band. When combining bands at different resolutions, the processing pipeline must resample them to a common grid before stacking them as model inputs.
+
+SENTINEL-1
+Sentinel-1 is a C-band Synthetic Aperture Radar (SAR) mission. Over land, a common acquisition configuration uses VV and VH polarization.
+
+Relevant channels:
+- VV: co-polarized radar backscatter.
+- VH: cross-polarized radar backscatter.
+
+SAR is useful because it can acquire imagery independent of daylight and is less affected by cloud cover than optical imagery. Radar backscatter depends on surface roughness, moisture, geometry, and scattering mechanisms, so it should be interpreted differently from optical reflectance.
+
+============================================================
+3. SENTINEL-2 BAND INTERPRETATION FOR QUARRY DETECTION
+============================================================
+
+B02 (Blue):
+Useful for visible spectral information and some atmospheric/cloud-related processing. It is not normally sufficient by itself to identify a quarry.
+
+B03 (Green):
+Provides green visible reflectance. It can contribute to land-cover discrimination and true/false-color composites.
+
+B04 (Red):
+Important for vegetation analysis because chlorophyll absorbs red wavelengths. It is used with NIR in NDVI.
+
+B05, B06, B07 (Red Edge):
+Useful for vegetation and red-edge characterization. They can help distinguish vegetation conditions and support land-cover classification.
+
+B08 (NIR):
+Vegetation strongly reflects NIR. This makes B08 especially useful for distinguishing vegetated areas from many bare/disturbed surfaces.
+
+B8A:
+A narrower NIR/red-edge band at 20 m resolution. It can provide additional spectral information about vegetation and land cover.
+
+B11 and B12 (SWIR):
+Useful for information related to moisture and surface materials. They can help distinguish dry bare surfaces, vegetation, and other land-cover types. Their interpretation should be based on the full spectral context rather than a single band.
+
+============================================================
+4. WHY NDVI IS IMPORTANT
+============================================================
+
+NDVI means Normalized Difference Vegetation Index.
+
+Formula:
+NDVI = (NIR - Red) / (NIR + Red)
+
+For Sentinel-2, a common implementation uses:
+NIR = B08
+Red = B04
+
+Therefore:
+NDVI = (B08 - B04) / (B08 + B04)
+
+Higher NDVI values generally indicate stronger vegetation signal, while low or negative values can occur over sparse vegetation, bare surfaces, water, clouds, shadows, or other non-vegetated surfaces.
+
+In a quarry monitoring system, NDVI can help identify vegetation loss and vegetation recovery around disturbed areas.
+
+Important limitation:
+Low NDVI does not prove that a location is a quarry. Roads, buildings, exposed soil, rocky terrain, construction sites, dry agricultural land, and water can also have low NDVI.
+
+NDVI should therefore be combined with spectral bands, spatial structure, temporal change, and/or additional indices.
+
+============================================================
+5. OTHER USEFUL FEATURES AND INDICES
+============================================================
+
+NDMI:
+Normalized Difference Moisture Index can be used to characterize vegetation/surface moisture depending on the selected bands and implementation.
+
+A common Sentinel-2 vegetation moisture formulation is:
+NDMI = (NIR - SWIR1) / (NIR + SWIR1)
+
+For Sentinel-2 this is often implemented with B08 and B11.
+
+NDBI:
+Normalized Difference Built-up Index is commonly used in built-up area studies. It can sometimes provide contextual information, but it is not a quarry-specific indicator and should not be treated as a quarry detector.
+
+Brightness / bare-surface features:
+Spectral brightness or combinations of visible and SWIR bands can help highlight exposed/disturbed surfaces. The exact formulation should be defined by the project and validated against labelled data.
+
+Water indices:
+Water indices can help identify water-filled quarry pits. Water should not automatically be interpreted as a quarry because natural lakes, ponds, rivers, reservoirs, and flooded fields can produce similar signals.
+
+============================================================
+6. WHAT A QUARRY MAY LOOK LIKE IN SENTINEL-2
+============================================================
+
+Potential visual and spectral characteristics:
+1. Reduced vegetation compared with surrounding land.
+2. Exposed rock, soil, sand, or gravel.
+3. Irregular excavation boundaries.
+4. Benches or terraced shapes in larger quarries.
+5. Internal access roads.
+6. Stockpiles or waste piles.
+7. Water-filled excavation areas.
+8. Bright or dark surfaces depending on material and illumination.
+9. Temporal expansion of the disturbed footprint.
+
+The same quarry can look different between dates because of:
+- Season
+- Sun angle
+- Atmospheric conditions
+- Soil moisture
+- Rainfall
+- Vegetation growth
+- Mining activity
+- Water level
+- Shadow
+- Sensor acquisition geometry
+
+============================================================
+7. SENTINEL-1 SAR FOR QUARRY MONITORING
+============================================================
+
+Sentinel-1 can complement Sentinel-2.
+
+VV and VH backscatter can provide information about:
+- Surface roughness
+- Moisture
+- Vegetation structure
+- Scattering changes
+- Some types of disturbance
+
+SAR interpretation is not equivalent to optical interpretation. A high or low VV/VH value does not directly mean "quarry".
+
+SAR can be particularly useful when:
+- Optical images are affected by clouds.
+- The project needs more frequent all-weather observations.
+- Surface change produces a detectable change in radar scattering.
+- Optical and SAR features are combined in a multimodal model.
+
+For advanced monitoring, SAR time series or coherence can also be considered where appropriate.
+
+============================================================
+8. MULTITEMPORAL CHANGE DETECTION
+============================================================
+
+Change detection compares imagery from different dates to identify changes in the land surface.
+
+For quarry monitoring, useful questions include:
+- Did a new disturbed area appear?
+- Did the quarry footprint expand?
+- Did vegetation decrease?
+- Did a water-filled pit appear?
+- Did a previously disturbed area begin to recover?
+- Did stockpiles or roads change?
+
+A basic workflow is:
+1. Select images from two or more dates.
+2. Apply compatible preprocessing.
+3. Align/resample images to a common grid.
+4. Calculate spectral/index differences or model features.
+5. Detect spatially coherent changes.
+6. Remove obvious artifacts and irrelevant changes.
+7. Compare detected changes with reference labels or imagery.
+
+Example:
+Delta NDVI = NDVI_after - NDVI_before
+
+A strong negative Delta NDVI may indicate vegetation loss, but it does not prove quarry expansion. Agricultural harvesting, drought, fire, construction, and seasonal changes can also produce vegetation loss.
+
+============================================================
+9. PREPROCESSING PIPELINE
+============================================================
+
+A practical Sentinel-2 preprocessing workflow can include:
+1. Acquire suitable imagery.
+2. Select the required bands.
+3. Check image dimensions and metadata.
+4. Cloud and cloud-shadow masking where appropriate.
+5. Convert/scale data consistently according to the product being used.
+6. Resample bands to a common spatial resolution if required.
+7. Align all bands spatially.
+8. Handle missing/no-data pixels.
+9. Normalize features if the selected ML model requires it.
+10. Stack bands and derived indices.
+11. Save the processed arrays and metadata.
+
+For Sentinel-1, preprocessing depends on the product and analysis. It can include radiometric calibration, terrain correction/orthorectification, speckle handling where appropriate, and conversion to a suitable backscatter representation.
+
+The exact preprocessing must match the data product and the model design. Do not mix raw digital numbers, reflectance, and already-processed values without understanding their scale and meaning.
+
+============================================================
+10. MODEL INPUTS
+============================================================
+
+Possible model inputs for a quarry detection system include:
+- Sentinel-2 bands B02, B03, B04, B05, B06, B07, B08, B8A, B11, B12.
+- NDVI.
+- NDMI or another validated moisture-related index.
+- Brightness or spectral ratios.
+- Sentinel-1 VV and VH.
+- Temporal differences such as Delta NDVI.
+- DEM/elevation/slope where available.
+- Texture or spatial features for high-resolution data.
+
+The final feature set should be selected experimentally using validation data.
+
+A model should not be described as "quarry detection" merely because it uses satellite bands. It needs labelled examples and an evaluation procedure.
+
+============================================================
+11. POSSIBLE MACHINE-LEARNING TASKS
+============================================================
+
+Classification:
+Predict whether an image tile or pixel belongs to a quarry-related class.
+
+Binary classification:
+- Quarry
+- Non-quarry
+
+Multi-class classification:
+- Active quarry
+- Inactive/abandoned quarry
+- Reclaimed/vegetated quarry
+- Water-filled quarry
+- Other disturbed land
+- Natural/baseline land
+
+Semantic segmentation:
+Predict the quarry footprint at pixel level.
+
+Object detection:
+Predict bounding boxes around quarry objects. This can be useful when the goal is object localization rather than exact boundary mapping.
+
+Change detection:
+Predict newly disturbed or changed areas between dates.
+
+The appropriate task depends on the project requirement and available labels.
+
+============================================================
+12. IMPORTANT NEGATIVE CLASSES
+============================================================
+
+A strong quarry detection dataset must contain difficult non-quarry examples.
+
+Useful negative classes include:
+- Bare agricultural fields
+- Construction sites
+- Roads
+- Rocky natural terrain
+- River sandbars
+- Dry riverbeds
+- Natural exposed soil
+- Landfills
+- Industrial areas
+- Building rooftops
+- Reservoirs and natural water bodies
+- Recently harvested fields
+- Drought-affected vegetation
+
+Why?
+Because a model trained only on quarry images may learn "bare/bright area = quarry" and produce many false positives.
+
+Negative examples should be geographically diverse and visually similar to quarry areas.
+
+============================================================
+13. DATASET ORGANIZATION
+============================================================
+
+Recommended organization:
+
+dataset/
+    images/
+        sentinel2/
+        sentinel1/
+    labels/
+        quarry_masks/
+        bounding_boxes/
+    metadata/
+        image_metadata.csv
+    splits/
+        train.csv
+        validation.csv
+        test.csv
+
+Each sample should ideally have:
+- Image or tile identifier
+- Acquisition date
+- Sensor
+- Geographic coordinates or tile information
+- Band information
+- Label
+- Annotation type
+- Source/reference
+- Quality flags
+- Cloud information when available
+
+For segmentation, the label should identify quarry pixels.
+For object detection, the label should contain bounding boxes or polygons.
+For classification, the label should identify the class of the tile/sample.
+
+============================================================
+14. TRAIN / VALIDATION / TEST SPLIT
+============================================================
+
+The dataset should be split into training, validation, and test sets.
+
+A critical rule:
+Avoid placing highly overlapping tiles from the same geographic area in both training and test sets. Otherwise, the reported accuracy may be overly optimistic because the model can effectively see very similar landscapes during training.
+
+A geographic holdout test set is often more informative for a satellite detection system.
+
+The test set should remain unseen during model development.
+
+============================================================
+15. LABEL QUALITY
+============================================================
+
+Labels are one of the most important parts of a detection dataset.
+
+A quarry label should be based on reliable evidence such as:
+- High-resolution imagery
+- Official maps or records where appropriate
+- Expert annotation
+- Multiple dates when temporal confirmation is needed
+- Field/reference data where available
+
+Annotation should distinguish quarry boundaries from surrounding roads, vegetation, settlements, water, and unrelated disturbed land.
+
+Uncertain examples can be assigned an "uncertain" flag and excluded from the first training experiment.
+
+============================================================
+16. COMMON FALSE POSITIVES
+============================================================
+
+Potential false positives:
+- Dry agricultural land
+- Construction zones
+- Rocky hills
+- Road cuts
+- Sand and gravel bars
+- Landfills
+- Industrial yards
+- Bare soil after harvesting
+- Drought-stressed vegetation
+- Cloud shadows
+- Water bodies
+
+The system should use multiple features to reduce these errors.
+
+============================================================
+17. COMMON FALSE NEGATIVES
+============================================================
+
+Potential false negatives:
+- Small quarries below the effective spatial detail of the imagery
+- Quarries covered by vegetation
+- Quarries with similar spectral characteristics to surrounding rocks
+- Cloud-covered areas
+- Shadowed quarry faces
+- Narrow or fragmented quarry features
+- Quarries whose boundaries are mixed with roads or settlements
+
+Higher-resolution imagery or additional temporal/contextual features may help in difficult cases.
+
+============================================================
+18. ACCURACY AND EVALUATION
+============================================================
+
+For classification, useful metrics include:
+- Accuracy
+- Precision
+- Recall
+- F1-score
+- Confusion matrix
+- ROC-AUC when appropriate
+
+For segmentation, useful metrics include:
+- Intersection over Union (IoU)
+- Dice/F1
+- Precision
+- Recall
+
+For object detection, common metrics include:
+- Precision
+- Recall
+- IoU
+- Average Precision (AP)
+- Mean Average Precision (mAP)
+
+Do not report only accuracy when classes are imbalanced. A model that predicts "non-quarry" for almost every sample can have high accuracy but poor quarry detection.
+
+============================================================
+19. RAG CHATBOT ROLE
+============================================================
+
+The RAG chatbot is not the same thing as the quarry detection model.
+
+The detection model analyzes satellite data and produces predictions.
+The RAG system retrieves relevant technical/project knowledge and gives natural-language answers.
+
+Example:
+User: "Which Sentinel-2 bands are useful for our quarry detector?"
+
+RAG should retrieve the project knowledge about B02-B12 and explain the role of visible, NIR, red-edge, and SWIR bands.
+
+Example:
+User: "Why did the model detect this area as a quarry?"
+
+A safe answer should depend on the actual model output and available features. The chatbot should not invent an explanation if no model explanation or feature information is available.
+
+Example:
+User: "What does a negative Delta NDVI mean?"
+
+RAG can explain that it indicates a decrease in the NDVI value between the selected dates, which may represent vegetation loss but can also result from seasonal or environmental changes.
+
+============================================================
+20. RAG QUESTION EXAMPLES
+============================================================
+
+Q: What is a quarry in satellite-image analysis?
+A: A quarry is a surface extraction area that may appear as exposed rock/soil, excavation pits, benches, roads, stockpiles, water-filled pits, and reduced vegetation.
+
+Q: Which Sentinel-2 bands are in our project?
+A: B02, B03, B04, B05, B06, B07, B08, B8A, B11, and B12.
+
+Q: Which Sentinel-2 band is red?
+A: B04 is the red band.
+
+Q: Which Sentinel-2 band is NIR?
+A: B08 is the 10 m near-infrared band.
+
+Q: Which Sentinel-2 bands are SWIR?
+A: B11 and B12 are SWIR bands at 20 m spatial resolution.
+
+Q: What is NDVI?
+A: NDVI is the Normalized Difference Vegetation Index, commonly calculated as (NIR - Red)/(NIR + Red).
+
+Q: How is NDVI calculated with Sentinel-2?
+A: A common implementation is NDVI = (B08 - B04)/(B08 + B04).
+
+Q: Does low NDVI prove a quarry?
+A: No. Low NDVI can occur in many non-vegetated or stressed surfaces, including bare soil, roads, construction sites, water, and dry agricultural areas.
+
+Q: Why use Sentinel-1?
+A: Sentinel-1 provides C-band SAR observations and can complement optical imagery, including in cloudy conditions.
+
+Q: What are VV and VH?
+A: VV and VH are Sentinel-1 polarization channels commonly used in land applications.
+
+Q: Why combine Sentinel-1 and Sentinel-2?
+A: They provide complementary information: optical imagery captures reflected spectral properties, while SAR captures microwave backscatter related to surface and structural properties.
+
+Q: What is change detection?
+A: Change detection compares observations from different dates to identify meaningful changes in the Earth's surface.
+
+Q: What is Delta NDVI?
+A: Delta NDVI is the difference between NDVI values at two dates, commonly NDVI_after minus NDVI_before.
+
+Q: Does negative Delta NDVI mean quarry expansion?
+A: Not necessarily. It can indicate vegetation loss, but seasonal change, harvesting, drought, fire, and construction can also cause it.
+
+Q: Why are negative samples important?
+A: They teach the model to distinguish quarries from visually similar non-quarry surfaces and reduce false positives.
+
+Q: What are common quarry false positives?
+A: Construction sites, roads, bare farmland, natural rocky terrain, river sandbars, landfills, and dry riverbeds are common examples.
+
+Q: What is semantic segmentation?
+A: Semantic segmentation predicts a class label for each image pixel, allowing the system to estimate the quarry footprint.
+
+Q: What is object detection?
+A: Object detection predicts the location of objects, commonly using bounding boxes.
+
+Q: What is classification?
+A: Classification assigns a class to an image tile or sample, such as quarry or non-quarry.
+
+Q: What is IoU?
+A: Intersection over Union measures the overlap between a predicted region and the reference region.
+
+Q: Why should train and test regions be geographically separated?
+A: Spatially overlapping or very nearby samples can make the test score overly optimistic because the model sees highly similar landscapes during training.
+
+Q: Can the chatbot detect a quarry by itself?
+A: The RAG chatbot retrieves knowledge and generates explanations. Quarry detection should be performed by the satellite-image analysis or ML pipeline.
+
+Q: Can the chatbot analyze an image?
+A: Only if an image-analysis component is connected to the chatbot and provides results. A text-only RAG pipeline cannot inspect an image by itself.
+
+Q: What should be done before training a quarry detector?
+A: Collect representative positive and negative samples, verify labels, preprocess imagery consistently, create train/validation/test splits, and define evaluation metrics.
+
+Q: Why are clouds a problem for Sentinel-2?
+A: Clouds and cloud shadows can obscure the surface and create misleading spectral values, so suitable masking or quality filtering is needed.
+
+Q: Why can quarry appearance change between dates?
+A: Season, rainfall, vegetation, water level, mining activity, illumination, and acquisition conditions can change the observed appearance.
+
+Q: What does B04 contribute to NDVI?
+A: B04 provides the red reflectance used with NIR in the NDVI calculation.
+
+Q: What does B08 contribute to NDVI?
+A: B08 provides the NIR reflectance used with red reflectance in the NDVI calculation.
+
+Q: Why are B11 and B12 useful?
+A: SWIR information can help characterize moisture and surface-material differences and can complement visible/NIR features.
+
+Q: Why should all bands be resampled before stacking?
+A: Sentinel-2 bands have different native spatial resolutions. A model input stack needs a consistent grid and pixel alignment.
+
+============================================================
+21. RECOMMENDED PROJECT WORKFLOW
+============================================================
+
+1. Define the quarry detection objective.
+2. Collect representative quarry and non-quarry samples.
+3. Collect multiple dates where change detection is required.
+4. Download or access Sentinel-2 and optional Sentinel-1 imagery.
+5. Preprocess the imagery.
+6. Align and resample required bands.
+7. Calculate NDVI and other validated features.
+8. Create labels/masks/bounding boxes.
+9. Split data geographically into train/validation/test.
+10. Train the selected detection/classification/segmentation model.
+11. Evaluate using appropriate metrics.
+12. Inspect false positives and false negatives.
+13. Improve labels/features/model where necessary.
+14. Store project documentation and model metadata.
+15. Use the RAG chatbot to answer technical questions about the dataset, preprocessing, features, model, and results.
+16. Connect the chatbot to model outputs only after the analysis pipeline is stable.
+
+============================================================
+22. IMPORTANT LIMITATIONS
+============================================================
+
+Satellite imagery does not guarantee perfect quarry identification.
+
+A reliable system should:
+- Use representative labelled data.
+- Include difficult negative examples.
+- Consider seasonal and geographic variation.
+- Validate results against reference data.
+- Avoid treating one spectral index as a definitive quarry indicator.
+- Report uncertainty and evaluation metrics.
+- Distinguish detection results from chatbot-generated explanations.
+
+The RAG chatbot should never invent a sensor value, model prediction, geographic location, quarry boundary, or confidence score that is not present in the connected data.
+
+============================================================
+23. SOURCES USED FOR THIS KNOWLEDGE BASE
+============================================================
+
+1. U.S. Geological Survey (USGS), "Remote sensing for monitoring mine lands and recovery efforts", Circular 1525, 2024.
+2. Copernicus Sentinel-2 Product Specification Document, Sentinel-2 MSI spectral-band specifications.
+3. Copernicus Sentinel-2 documentation describing band wavelengths and spatial resolutions.
+4. Copernicus Sentinel-1 documentation describing SAR and VV/VH data.
+5. U.S. Geological Survey material on remote sensing for mining and mine-land monitoring.
+
+END OF KNOWLEDGE BASE

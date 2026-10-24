@@ -1,0 +1,8 @@
+ollama
+numpy
+pandas
+rasterio
+scikit-learn
+chromadb
+sentence-transformers
+streamlit
